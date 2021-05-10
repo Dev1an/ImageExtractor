@@ -1,6 +1,7 @@
 import Quartz
 
 enum PDFReadError: Error {
+	case cannotInterpretFileAsPDFDocumentRepresentation
 	case couldNotOpenPage(Int)
 	case couldNotGetPageReference
 	case couldNotOpenPageDictionary
@@ -8,21 +9,12 @@ enum PDFReadError: Error {
 	case cannotCopyData
 }
 
-enum EmbeddedImage {
+public enum EmbeddedImage {
 	case jpg(Data)
 	case raw(CGImage)
 }
 
-func extractImages(from pdf: PDFDocument, extractor: @escaping (EmbeddedImage, Int, String)->Void) throws {
-	for pageNumber in 0..<pdf.pageCount {
-		guard let page = pdf.page(at: pageNumber) else {
-			throw PDFReadError.couldNotOpenPage(pageNumber)
-		}
-		try extractImages(from: page) { extractor($0, pageNumber, $1) }
-	}
-}
-
-func extractImages(from page: PDFPage, extractor: @escaping (EmbeddedImage, String)->Void) throws {
+public func extractImages(from page: PDFPage, extractor: @escaping (EmbeddedImage, String)->Void) throws {
 	guard let page = page.pageRef else {
 		throw PDFReadError.couldNotGetPageReference
 	}
@@ -38,7 +30,7 @@ func extractImages(from page: PDFPage, extractor: @escaping (EmbeddedImage, Stri
 	if let xObject = resources[CGPDFDictionaryGetDictionary, "XObject"] {
 		func iterator(key: UnsafePointer<Int8>, object: CGPDFObjectRef, info: UnsafeMutableRawPointer?) -> Bool {
 			do {
-				if let data = try extractImage(key: key, object: object) {
+				if let data = try extractImage(object: object) {
 					extractor(data, String(cString: key))
 				}
 			} catch {
@@ -61,12 +53,11 @@ enum RawDecodingError: Error {
 	case noLookupTable
 }
 
-func extractImage(key: UnsafePointer<Int8>, object: CGPDFObjectRef) throws -> EmbeddedImage? {
+func extractImage(object: CGPDFObjectRef) throws -> EmbeddedImage? {
 	guard let stream: CGPDFStreamRef = object[CGPDFObjectGetValue, .stream] else { return nil }
 	guard let dictionary = CGPDFStreamGetDictionary(stream) else {return nil}
 
 	guard dictionary.getName("Subtype", CGPDFDictionaryGetName) == "Image" else {return nil}
-	print(String(cString: key))
 
 	var format = CGPDFDataFormat.raw
 	guard let data = CGPDFStreamCopyData(stream, &format) else { throw PDFReadError.cannotCopyData }

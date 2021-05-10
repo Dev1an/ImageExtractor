@@ -5,7 +5,7 @@
 //  Created by Damiaan on 10/05/2021.
 //
 
-import Quartz
+import PDFKit
 
 public func extractImages(from url: URL, extractor: @escaping (EmbeddedImage, Int, String)->Void) throws {
 	let document = try pdfDocument(from: url)

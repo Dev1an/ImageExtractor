@@ -1,6 +1,6 @@
 import XCTest
 @testable import ImageExtractor
-import Quartz
+import PDFKit
 
 final class ImageExtractorTests: XCTestCase {
     func testSamplePDF() throws {

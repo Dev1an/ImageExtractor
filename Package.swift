@@ -5,6 +5,7 @@ import PackageDescription
 
 let package = Package(
     name: "ImageExtractor",
+	platforms: [.macOS(.v10_14)],
     products: [
         // Products define the executables and libraries a package produces, and make them visible to other packages.
         .library(
@@ -23,6 +24,10 @@ let package = Package(
             dependencies: []),
         .testTarget(
             name: "ImageExtractorTests",
-            dependencies: ["ImageExtractor"]),
+            dependencies: ["ImageExtractor"],
+			resources: [
+				.process("sample.pdf")
+			]
+		),
     ]
 )

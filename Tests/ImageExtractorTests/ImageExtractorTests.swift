@@ -1,15 +1,25 @@
 import XCTest
 @testable import ImageExtractor
+import Quartz
 
 final class ImageExtractorTests: XCTestCase {
-    func testExample() {
-        // This is an example of a functional test case.
-        // Use XCTAssert and related functions to verify your tests produce the correct
-        // results.
-        XCTAssertEqual(ImageExtractor().text, "Hello, World!")
+    func testSamplePDF() throws {
+		guard let sampleURL = Bundle.module.url(forResource: "sample", withExtension: "pdf"),
+			  let samplePDF = PDFDocument(url: sampleURL) else {
+			XCTFail("Unable to load sample PDF")
+			return
+		}
+
+		var imageCount = 0
+		try extractImages(from: samplePDF) { (image, page, name) in
+			print(image, page, name)
+			imageCount += 1
+		}
+
+		XCTAssertEqual(imageCount, 1)
     }
 
     static var allTests = [
-        ("testExample", testExample),
+        ("testSamplePDF", testSamplePDF),
     ]
 }

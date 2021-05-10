@@ -15,7 +15,7 @@ extension MainTool {
 		@Argument(help: "The file URL for the PDF input", transform: URL.init(fileURLWithPath:))
 		var input: URL
 
-		@Option(name: [.short, .long], parsing: .upToNextOption)
+		@Option(name: [.short, .long], parsing: .upToNextOption, help: pageOptionHelp)
 		var pages = [Int]()
 
 		func run() throws {

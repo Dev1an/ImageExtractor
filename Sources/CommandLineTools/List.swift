@@ -9,12 +9,14 @@ import Foundation
 import ArgumentParser
 import ImageExtractor
 
+let pageOptionHelp: ArgumentHelp = "A 0-based index of the pages you want to extract images from"
+
 extension MainTool {
 	struct List: ParsableCommand {
 		@Argument(help: "The file URL for the PDF input", transform: URL.init(fileURLWithPath:))
 		var input: URL
 
-		@Option(name: [.short, .long], parsing: .upToNextOption)
+		@Option(name: [.short, .long], parsing: .upToNextOption, help: pageOptionHelp)
 		var pages = [Int]()
 
 		func run() throws {

@@ -7,14 +7,14 @@
 
 import PDFKit
 
-public func extractImages(from url: URL, extractor: @escaping (EmbeddedImage, Int, String)->Void) throws {
+public func extractImages(from url: URL, consumer: @escaping (EmbeddedImage, Int, String)->Void) throws {
 	let document = try pdfDocument(from: url)
-	try extractImages(from: document, extractor: extractor)
+	try extractImages(from: document, consumer: consumer)
 }
 
-public func extractImages(from data: Data, extractor: @escaping (EmbeddedImage, Int, String)->Void) throws {
+public func extractImages(from data: Data, consumer: @escaping (EmbeddedImage, Int, String)->Void) throws {
 	let document = try pdfDocument(from: data)
-	try extractImages(from: document, extractor: extractor)
+	try extractImages(from: document, consumer: consumer)
 }
 
 public func pdfDocument(from url: URL) throws -> PDFDocument {
@@ -31,11 +31,11 @@ public func pdfDocument(from data: Data) throws -> PDFDocument {
 	return document
 }
 
-public func extractImages(from pdf: PDFDocument, extractor: @escaping (EmbeddedImage, Int, String)->Void) throws {
+public func extractImages(from pdf: PDFDocument, consumer consume: @escaping (EmbeddedImage, Int, String)->Void) throws {
 	for pageNumber in 0..<pdf.pageCount {
 		guard let page = pdf.page(at: pageNumber) else {
 			throw PDFReadError.couldNotOpenPage(pageNumber)
 		}
-		try extractImages(from: page) { extractor($0, pageNumber, $1) }
+		try extractImages(from: page) { consume($0, pageNumber, $1) }
 	}
 }

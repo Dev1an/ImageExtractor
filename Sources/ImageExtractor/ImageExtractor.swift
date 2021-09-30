@@ -14,7 +14,7 @@ public enum EmbeddedImage {
 	case raw(CGImage)
 }
 
-public func extractImages(from page: PDFPage, extractor: @escaping (EmbeddedImage, String)->Void) throws {
+func getResources(for page: PDFPage) throws -> CGPDFDictionaryRef {
 	guard let page = page.pageRef else {
 		throw PDFReadError.couldNotGetPageReference
 	}
@@ -27,11 +27,16 @@ public func extractImages(from page: PDFPage, extractor: @escaping (EmbeddedImag
 		throw PDFReadError.couldNotReadResources
 	}
 
+	return resources
+}
+
+public func extractImages(from page: PDFPage, consumer consume: @escaping (EmbeddedImage, String)->Void) throws {
+	let resources = try getResources(for: page)
 	if let xObject = resources[CGPDFDictionaryGetDictionary, "XObject"] {
 		func iterator(key: UnsafePointer<Int8>, object: CGPDFObjectRef, info: UnsafeMutableRawPointer?) -> Bool {
 			do {
 				if let data = try extractImage(object: object) {
-					extractor(data, String(cString: key))
+					consume(data, String(cString: key))
 				}
 			} catch {
 				print(error)
@@ -53,18 +58,60 @@ enum RawDecodingError: Error {
 	case noLookupTable
 }
 
+public struct ImageReference: Hashable, CustomDebugStringConvertible {
+	let xObject: CGPDFObjectRef
+	let dictionary: CGPDFDictionaryRef
+	let stream: CGPDFStreamRef
+
+	public static func == (left: Self, right: Self) -> Bool {
+		left.xObject == right.xObject
+	}
+
+	public func hash(into hasher: inout Hasher) {
+		hasher.combine(xObject)
+	}
+
+	public var debugDescription: String {
+		xObject.debugDescription
+	}
+}
+
 func extractImage(object: CGPDFObjectRef) throws -> EmbeddedImage? {
 	guard let stream: CGPDFStreamRef = object[CGPDFObjectGetValue, .stream] else { return nil }
 	guard let dictionary = CGPDFStreamGetDictionary(stream) else {return nil}
 
 	guard dictionary.getName("Subtype", CGPDFDictionaryGetName) == "Image" else {return nil}
 
+	return try extractImage(from: ImageReference(xObject: object, dictionary: dictionary, stream: stream))
+}
+
+public func extractImageReferences(from page: PDFPage) throws -> [(ImageReference, String)] {
+	let resources = try getResources(for: page)
+	var references = [(ImageReference, String)]()
+	if let xObject = resources[CGPDFDictionaryGetDictionary, "XObject"] {
+		func iterator(key: UnsafePointer<Int8>, object: CGPDFObjectRef, info: UnsafeMutableRawPointer?) -> Bool {
+			if let stream: CGPDFStreamRef = object[CGPDFObjectGetValue, .stream],
+			   let dictionary = CGPDFStreamGetDictionary(stream),
+			   dictionary.getName("Subtype", CGPDFDictionaryGetName) == "Image" {
+				references.append((
+					ImageReference(xObject: object, dictionary: dictionary, stream: stream),
+					String(cString: key)
+				))
+			}
+			return true
+		}
+		CGPDFDictionaryApplyBlock(xObject, iterator, nil)
+	}
+	return references
+}
+
+public func extractImage(from reference: ImageReference) throws -> EmbeddedImage? {
 	var format = CGPDFDataFormat.raw
-	guard let data = CGPDFStreamCopyData(stream, &format) else { throw PDFReadError.cannotCopyData }
+	guard let data = CGPDFStreamCopyData(reference.stream, &format) else { throw PDFReadError.cannotCopyData }
 
 	if format == .JPEG2000 || format == .jpegEncoded {
 		if
-			let colorSpace = try? dictionary[CGPDFDictionaryGetObject, "ColorSpace"]?.getColorSpace(),
+			let colorSpace = try? reference.dictionary[CGPDFDictionaryGetObject, "ColorSpace"]?.getColorSpace(),
 			let provider = CGDataProvider(data: data),
 			let embeddedImage = CGImage(
 				jpegDataProviderSource: provider,
@@ -78,7 +125,7 @@ func extractImage(object: CGPDFObjectRef) throws -> EmbeddedImage? {
 		}
 		return .jpg(data as Data)
 	} else {
-		return .raw( try getCGImage(data: data, info: dictionary) )
+		return .raw( try getCGImage(data: data, info: reference.dictionary) )
 	}
 }
 

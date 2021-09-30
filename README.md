@@ -1,8 +1,8 @@
 # ImageExtractor
 
-A pure swift library to extract images from PDFs on macOS.
+A pure swift library to extract images from PDFs on macOS and iOS.
 
-Only uses macOS system libraries (Quartz) and no other third party dependencies.
+Only uses system libraries (PDFKit) and no other third party dependencies.
 
 ## Swift usage
 
